@@ -31,12 +31,12 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
   const [noticeType, setNoticeType] = useState<"" | "success" | "warning" | "error">(""); // 控制頁面提示類型
   const [noticeText, setNoticeText] = useState(""); // 控制頁面提示文字
   const [showDebugPanel, setShowDebugPanel] = useState(false); // 控制除錯區塊是否展開，預設先關閉
+  const [showNoticeDialog, setShowNoticeDialog] = useState(false); // 控制中間提示視窗是否顯示
 
   const loadTimeoutRef = useRef<number | null>(null); // 記錄讀取逾時 timer
   const popupRef = useRef<Window | null>(null); // 記錄目前開啟的外部分頁視窗參考
   const popupMonitorTimerRef = useRef<number | null>(null); // 記錄監看 popup 是否關閉的 timer
   const lastReloadAtRef = useRef(0); // 記錄上次 reload 時間，避免短時間重複 reload
-  const noticeTimerRef = useRef<number | null>(null); // 記錄提示自動消失 timer
   const cleanupQueryTimerRef = useRef<number | null>(null); // 記錄清除網址參數 timer
 
   const searchParams = useSearchParams(); // 取得目前網址查詢參數
@@ -74,17 +74,19 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
     } // 判斷結束
   }, []); // useCallback 結束
 
-  const clearNoticeTimers = useCallback(() => { // 建立清除提示相關 timer 函式
-    if (noticeTimerRef.current !== null) { // 若提示消失 timer 存在
-      window.clearTimeout(noticeTimerRef.current); // 清除提示消失 timer
-      noticeTimerRef.current = null; // 重設 ref
-    } // 判斷結束
-
+  const clearCleanupQueryTimer = useCallback(() => { // 建立清除網址清理 timer 函式
     if (cleanupQueryTimerRef.current !== null) { // 若網址清理 timer 存在
       window.clearTimeout(cleanupQueryTimerRef.current); // 清除網址清理 timer
       cleanupQueryTimerRef.current = null; // 重設 ref
     } // 判斷結束
   }, []); // useCallback 結束
+
+  const closeNoticeDialog = useCallback(() => { // 建立手動關閉中間提示視窗函式
+    setShowNoticeDialog(false); // 關閉中間提示視窗
+    setNoticeType(""); // 清空提示類型
+    setNoticeText(""); // 清空提示文字
+    appendDebugLog("提示訊息已手動關閉"); // 紀錄 debug 訊息
+  }, [appendDebugLog]); // useCallback 結束
 
   const resetTransientState = useCallback(() => { // 建立統一重置頁面暫存狀態函式
     setLineLoading(""); // 清空 LINE 啟動中狀態
@@ -200,7 +202,7 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
   }, [appendDebugLog, loadManagers]); // 依賴項目
 
   useEffect(() => { // 依 query 參數顯示提示，並自動清掉網址
-    clearNoticeTimers(); // 先清掉舊 timer
+    clearCleanupQueryTimer(); // 先清掉舊 timer
 
     let nextNoticeType: "" | "success" | "warning" | "error" = ""; // 記錄提示類型
     let nextNoticeText = ""; // 記錄提示文字
@@ -224,6 +226,7 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
 
     setNoticeType(nextNoticeType); // 更新提示類型
     setNoticeText(nextNoticeText); // 更新提示文字
+    setShowNoticeDialog(Boolean(nextNoticeType && nextNoticeText)); // 若有提示就顯示中間視窗
 
     appendDebugLog(`query 參數變化：lineSuccess=${lineSuccess ?? ""}，lineError=${lineError ?? ""}，lineExists=${lineExists ?? ""}，systemLineLogin=${systemLineLogin ?? ""}，popupLoginDone=${popupLoginDone ?? ""}`); // 紀錄 query 變化
     resetTransientState(); // 清空暫存狀態
@@ -236,13 +239,12 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
         window.history.replaceState({}, "", cleanUrl); // 不重整頁面，直接把網址改回 /managers
         appendDebugLog("已自動清除網址提示參數，網址回復為 /managers"); // 紀錄網址清理
       }, 600); // 稍微延遲，避免使用者完全看不到 query 作用
-
     } // 判斷結束
 
     return () => { // effect 清理時執行
-      clearNoticeTimers(); // 清除本輪 timer
+      clearCleanupQueryTimer(); // 清除本輪 timer
     }; // 清理結束
-  }, [appendDebugLog, clearNoticeTimers, lineDisplayName, lineError, lineExists, lineSuccess, popupLoginDone, resetTransientState, systemLineLogin]); // 依賴項目
+  }, [appendDebugLog, clearCleanupQueryTimer, lineDisplayName, lineError, lineExists, lineSuccess, popupLoginDone, resetTransientState, systemLineLogin]); // 依賴項目
 
   useEffect(() => { // 監聽視窗重新取得焦點與可見性變化
     const handleFocus = () => { // 建立 focus 事件處理函式
@@ -271,9 +273,9 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
     return () => { // 清理開始
       clearLoadTimeout(); // 清除讀取逾時 timer
       clearPopupMonitor(); // 清除 popup 監看 timer
-      clearNoticeTimers(); // 清除提示 timer
+      clearCleanupQueryTimer(); // 清除網址清理 timer
     }; // 清理結束
-  }, [clearLoadTimeout, clearPopupMonitor, clearNoticeTimers]); // 依賴項目
+  }, [clearLoadTimeout, clearPopupMonitor, clearCleanupQueryTimer]); // 依賴項目
 
   const handleDelete = async (id: string, role: string) => { // 建立刪除協助人員函式
     appendDebugLog(`handleDelete() 被點擊，id=${id}，role=${role}`); // 紀錄刪除點擊
@@ -435,16 +437,28 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
     appendDebugLog("handleManualReload() 被點擊"); // 紀錄手動重新讀取
     loadManagers("manual_reload_button"); // 手動重新讀資料
   }; // 函式結束
-  const closeNotice = () => { // 建立手動關閉提示訊息函式
-    setNoticeType(""); // 清空提示類型
-    setNoticeText(""); // 清空提示文字
-    appendDebugLog("提示訊息已手動關閉"); // 紀錄 debug 訊息
-  }; // 函式結束
+
+  const dialogTitle = noticeType === "success" // 判斷提示視窗標題
+    ? "操作成功" // 成功標題
+    : noticeType === "warning" // 若為警告
+    ? "提醒" // 警告標題
+    : noticeType === "error" // 若為錯誤
+    ? "發生錯誤" // 錯誤標題
+    : ""; // 預設空字串
+
+  const dialogButtonClass = noticeType === "success" // 判斷提示視窗按鈕樣式
+    ? "bg-green-600 text-white hover:bg-green-700" // 成功按鈕
+    : noticeType === "warning" // 若為警告
+    ? "bg-yellow-500 text-white hover:bg-yellow-600" // 警告按鈕
+    : noticeType === "error" // 若為錯誤
+    ? "bg-red-600 text-white hover:bg-red-700" // 錯誤按鈕
+    : "bg-slate-600 text-white hover:bg-slate-700"; // 預設按鈕
+
   if (relayClosing) { // 若目前頁是登入子視窗回來的 relay 頁
     return ( // 顯示簡單處理中畫面
-      <main className="p-4 md:p-6 flex items-center justify-center"> {/* 最外層容器 */}
-        <div className="rounded-2xl border bg-white px-8 py-6 shadow-sm text-center"> {/* 處理中卡片 */}
-          <div className="text-xl font-bold mb-2">登入結果處理中</div> {/* 標題 */}
+      <main className="flex items-center justify-center p-4 md:p-6"> {/* 最外層容器 */}
+        <div className="rounded-2xl border bg-white px-8 py-6 text-center shadow-sm"> {/* 處理中卡片 */}
+          <div className="mb-2 text-xl font-bold">登入結果處理中</div> {/* 標題 */}
           <div className="text-gray-600">正在返回主頁，這個視窗會自動關閉…</div> {/* 說明 */}
         </div>
       </main>
@@ -452,208 +466,190 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
   } // relay 畫面結束
 
   return ( // 回傳畫面開始
-    <main className="p-4 md:p-6"> {/* 最外層容器 */}
-      <div className="w-full max-w-[1400px]"> {/* 內容容器 */}
-        <div className="mb-4"> {/* 返回鍵區塊 */}
-          <Link
-            href="/"
-            className="inline-flex items-center justify-center rounded-xl border-2 border-gray-400 bg-white px-4 py-2 font-semibold text-gray-700 hover:bg-gray-50"
-          >
-            返回首頁
-          </Link>
-        </div>
+    <>
+      <main className="p-4 md:p-6"> {/* 最外層容器 */}
+        <div className="w-full max-w-[1400px]"> {/* 內容容器 */}
+          <div className="mb-4"> {/* 返回鍵區塊 */}
+            <Link
+              href="/"
+              className="inline-flex items-center justify-center rounded-xl border-2 border-gray-400 bg-white px-4 py-2 font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              返回首頁
+            </Link>
+          </div>
 
-        <h1 className="mb-2 text-2xl font-bold">協助人員管理</h1> {/* 頁面標題 */}
+          <h1 className="mb-2 text-2xl font-bold">協助人員管理</h1> {/* 頁面標題 */}
 
-        <p className="mb-6 text-gray-600"> {/* 頁面說明文字 */}
-          這裡先測試讀取與 LINE 綁定 Investors3 / members 子集合資料
-        </p>
-
-{noticeType === "success" && noticeText && (
-  <div className="mb-4 flex items-start justify-between gap-3 rounded-xl border border-green-200 bg-green-50 p-4 text-green-700">
-    <div className="leading-7">{noticeText}</div>
-    <button
-      type="button"
-      onClick={closeNotice}
-      className="shrink-0 rounded-lg border border-green-300 bg-white px-3 py-1 text-sm font-semibold text-green-700 hover:bg-green-100"
-    >
-      關閉
-    </button>
-  </div>
-)}
-
-{noticeType === "warning" && noticeText && (
-  <div className="mb-4 flex items-start justify-between gap-3 rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-yellow-700">
-    <div className="leading-7">{noticeText}</div>
-    <button
-      type="button"
-      onClick={closeNotice}
-      className="shrink-0 rounded-lg border border-yellow-300 bg-white px-3 py-1 text-sm font-semibold text-yellow-700 hover:bg-yellow-100"
-    >
-      關閉
-    </button>
-  </div>
-)}
-{noticeType === "error" && noticeText && (
-  <div className="mb-4 flex items-start justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-600">
-    <div className="leading-7">{noticeText}</div>
-    <button
-      type="button"
-      onClick={closeNotice}
-      className="shrink-0 rounded-lg border border-red-300 bg-white px-3 py-1 text-sm font-semibold text-red-600 hover:bg-red-100"
-    >
-      關閉
-    </button>
-  </div>
-)}
-
-        <div className="mb-6 rounded-2xl border bg-white p-5 shadow-sm"> {/* LINE 綁定入口區塊 */}
-          <h2 className="mb-3 text-xl font-semibold">新增協助人員（LINE綁定）</h2>
-
-          <p className="mb-4 text-gray-600">
-            不再手動輸入 memberId、姓名、Email，改由 LINE 登入後自動取得 LINE 資料並回填到 Investors3 的 members 子集合。
+          <p className="mb-6 text-gray-600"> {/* 頁面說明文字 */}
+            這裡先測試讀取與 LINE 綁定 Investors3 / members 子集合資料
           </p>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            <button
-              type="button"
-              onClick={() => startLineLogin("normal")}
-              disabled={lineLoading !== ""}
-              className="inline-flex items-center justify-center rounded-xl bg-green-500 px-5 py-3 font-semibold text-white hover:bg-green-600 disabled:opacity-50"
-            >
-              {lineLoading === "normal" ? "啟動中..." : "前往 LINE 綁定頁"}
-            </button>
+          <div className="mb-6 rounded-2xl border bg-white p-5 shadow-sm"> {/* LINE 綁定入口區塊 */}
+            <h2 className="mb-3 text-xl font-semibold">新增協助人員（LINE綁定）</h2>
 
-            <div className="hidden md:block"> {/* 手機隱藏，桌機才顯示 QR 登入按鈕 */}
+            <p className="mb-4 text-gray-600">
+              不再手動輸入 memberId、姓名、Email，改由 LINE 登入後自動取得 LINE 資料並回填到 Investors3 的 members 子集合。
+            </p>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
               <button
                 type="button"
-                onClick={() => startLineLogin("qr")}
+                onClick={() => startLineLogin("normal")}
                 disabled={lineLoading !== ""}
-                className="inline-flex w-full items-center justify-center rounded-xl border-2 border-green-500 bg-white px-5 py-3 font-semibold text-green-700 hover:bg-green-50 disabled:opacity-50"
+                className="inline-flex items-center justify-center rounded-xl bg-green-500 px-5 py-3 font-semibold text-white hover:bg-green-600 disabled:opacity-50"
               >
-                {lineLoading === "qr" ? "啟動中..." : "優先顯示 QR 登入"}
+                {lineLoading === "normal" ? "啟動中..." : "前往 LINE 綁定頁"}
+              </button>
+
+              <div className="hidden md:block"> {/* 手機隱藏，桌機才顯示 QR 登入按鈕 */}
+                <button
+                  type="button"
+                  onClick={() => startLineLogin("qr")}
+                  disabled={lineLoading !== ""}
+                  className="inline-flex w-full items-center justify-center rounded-xl border-2 border-green-500 bg-white px-5 py-3 font-semibold text-green-700 hover:bg-green-50 disabled:opacity-50"
+                >
+                  {lineLoading === "qr" ? "啟動中..." : "優先顯示 QR 登入"}
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={goPasswordLogin}
+                className="inline-flex items-center justify-center rounded-xl border-2 border-slate-400 bg-white px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                帳號 / 密碼登入
+              </button>
+
+              <button
+                type="button"
+                onClick={handleManualReload}
+                className="inline-flex items-center justify-center rounded-xl border-2 border-blue-400 bg-white px-5 py-3 font-semibold text-blue-700 hover:bg-blue-50"
+              >
+                重新讀取名單
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowDebugPanel((prev) => !prev)}
+                className="inline-flex items-center justify-center rounded-xl border-2 border-gray-300 bg-white px-5 py-3 font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                {showDebugPanel ? "隱藏除錯資訊" : "顯示除錯資訊"}
               </button>
             </div>
-
-            <button
-              type="button"
-              onClick={goPasswordLogin}
-              className="inline-flex items-center justify-center rounded-xl border-2 border-slate-400 bg-white px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              帳號 / 密碼登入
-            </button>
-
-            <button
-              type="button"
-              onClick={handleManualReload}
-              className="inline-flex items-center justify-center rounded-xl border-2 border-blue-400 bg-white px-5 py-3 font-semibold text-blue-700 hover:bg-blue-50"
-            >
-              重新讀取名單
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowDebugPanel((prev) => !prev)}
-              className="inline-flex items-center justify-center rounded-xl border-2 border-gray-300 bg-white px-5 py-3 font-semibold text-gray-700 hover:bg-gray-50"
-            >
-              {showDebugPanel ? "隱藏除錯資訊" : "顯示除錯資訊"}
-            </button>
           </div>
-        </div>
 
-        {showDebugPanel && (
-          <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4"> {/* Debug 區塊 */}
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <h3 className="text-sm font-bold text-slate-700">除錯資訊 Debug Log</h3>
-              <div className="text-xs text-slate-500">loadManagers 次數：{loadManagersCount}</div>
+          {showDebugPanel && (
+            <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4"> {/* Debug 區塊 */}
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h3 className="text-sm font-bold text-slate-700">除錯資訊 Debug Log</h3>
+                <div className="text-xs text-slate-500">loadManagers 次數：{loadManagersCount}</div>
+              </div>
+
+              <div className="mb-3 grid gap-3 text-xs text-slate-600 md:grid-cols-2">
+                <div>didHydrate：{String(didHydrate)}</div>
+                <div>loading：{String(loading)}</div>
+                <div>lineLoading：{lineLoading || "(空)"}</div>
+                <div>deletingId：{deletingId || "(空)"}</div>
+                <div>items.length：{items.length}</div>
+                <div>popupState：{lastPopupState}</div>
+              </div>
+
+              <div className="max-h-64 space-y-2 overflow-y-auto rounded-xl border bg-white p-3 text-xs text-slate-700">
+                {debugLogs.length === 0 ? (
+                  <div>目前尚無 debug 訊息</div>
+                ) : (
+                  debugLogs.map((log, index) => (
+                    <div key={`${log}-${index}`} className="whitespace-pre-wrap break-all">
+                      {log}
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
+          )}
 
-            <div className="mb-3 grid gap-3 text-xs text-slate-600 md:grid-cols-2">
-              <div>didHydrate：{String(didHydrate)}</div>
-              <div>loading：{String(loading)}</div>
-              <div>lineLoading：{lineLoading || "(空)"}</div>
-              <div>deletingId：{deletingId || "(空)"}</div>
-              <div>items.length：{items.length}</div>
-              <div>popupState：{lastPopupState}</div>
+          {loading && (
+            <div className="rounded-xl border bg-white p-4 shadow-sm">
+              讀取中...
             </div>
+          )}
 
-            <div className="max-h-64 space-y-2 overflow-y-auto rounded-xl border bg-white p-3 text-xs text-slate-700">
-              {debugLogs.length === 0 ? (
-                <div>目前尚無 debug 訊息</div>
-              ) : (
-                debugLogs.map((log, index) => (
-                  <div key={`${log}-${index}`} className="whitespace-pre-wrap break-all">
-                    {log}
-                  </div>
-                ))
-              )}
+          {!loading && error && (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-600">
+              {error}
             </div>
-          </div>
-        )}
+          )}
 
-        {loading && (
-          <div className="rounded-xl border bg-white p-4 shadow-sm">
-            讀取中...
-          </div>
-        )}
+          {!loading && !error && items.length === 0 && (
+            <div className="rounded-xl border bg-white p-4 shadow-sm">
+              目前沒有協助人員資料
+            </div>
+          )}
 
-        {!loading && error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-600">
-            {error}
-          </div>
-        )}
+          {!loading && !error && items.length > 0 && (
+            <div className="space-y-4">
+              {items.map((item) => (
+                <div
+                  key={item.id}
+                  className="rounded-2xl border bg-white p-5 shadow-sm"
+                >
+                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div className="flex min-w-0 items-center gap-4">
+                      {item.linePictureUrl ? (
+                        <img
+                          src={item.linePictureUrl}
+                          alt={item.name || item.id}
+                          className="h-16 w-16 shrink-0 rounded-full border object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border bg-gray-100 text-sm text-gray-400">
+                          無頭像
+                        </div>
+                      )}
 
-        {!loading && !error && items.length === 0 && (
-          <div className="rounded-xl border bg-white p-4 shadow-sm">
-            目前沒有協助人員資料
-          </div>
-        )}
-
-        {!loading && !error && items.length > 0 && (
-          <div className="space-y-4">
-            {items.map((item) => (
-              <div
-                key={item.id}
-                className="rounded-2xl border bg-white p-5 shadow-sm"
-              >
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <div className="flex min-w-0 items-center gap-4">
-                    {item.linePictureUrl ? (
-                      <img
-                        src={item.linePictureUrl}
-                        alt={item.name || item.id}
-                        className="h-16 w-16 shrink-0 rounded-full border object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border bg-gray-100 text-sm text-gray-400">
-                        無頭像
-                      </div>
-                    )}
-
-                    <div className="min-w-0 space-y-1">
-                      <div className="break-words text-lg font-semibold">
-                        {item.name || "未填寫姓名"}
-                      </div>
-                      <div className="break-all text-sm text-gray-500">
-                        文件ID：{item.id}
+                      <div className="min-w-0 space-y-1">
+                        <div className="break-words text-lg font-semibold">
+                          {item.name || "未填寫姓名"}
+                        </div>
+                        <div className="break-all text-sm text-gray-500">
+                          文件ID：{item.id}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(item.id, item.role)}
-                    disabled={deletingId === item.id || item.role === "owner"}
-                    className="w-full rounded-xl bg-red-500 px-4 py-2 font-semibold text-white disabled:opacity-50 md:w-auto"
-                  >
-                    {item.role === "owner" ? "owner不可刪除" : deletingId === item.id ? "刪除中..." : "刪除此名單"}
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(item.id, item.role)}
+                      disabled={deletingId === item.id || item.role === "owner"}
+                      className="w-full rounded-xl bg-red-500 px-4 py-2 font-semibold text-white disabled:opacity-50 md:w-auto"
+                    >
+                      {item.role === "owner" ? "owner不可刪除" : deletingId === item.id ? "刪除中..." : "刪除此名單"}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
+
+      {showNoticeDialog && noticeText && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-4"> {/* 中間彈出提示視窗背景遮罩 */}
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl"> {/* 提示視窗卡片 */}
+            <div className="mb-3 text-2xl font-bold text-gray-900">{dialogTitle}</div> {/* 提示標題 */}
+            <div className="mb-6 whitespace-pre-wrap break-words text-base leading-8 text-gray-700">{noticeText}</div> {/* 提示文字 */}
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={closeNoticeDialog}
+                className={`rounded-xl px-5 py-2.5 text-sm font-semibold ${dialogButtonClass}`}
+              >
+                確定
+              </button>
+            </div>
           </div>
-        )}
-      </div>
-    </main>
+        </div>
+      )}
+    </>
   ); // 畫面回傳結束
 } // 元件結束
