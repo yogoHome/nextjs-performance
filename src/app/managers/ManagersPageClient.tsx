@@ -320,34 +320,48 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
     } // finally 結束
   }; // handleDelete 函式結束
 
+  const isMobileDevice = () => { // 建立判斷是否為手機裝置的函式
+    if (typeof window === "undefined") { // 若目前不是瀏覽器環境
+      return false; // 回傳 false
+    } // 判斷結束
+
+    const userAgent = window.navigator.userAgent || ""; // 取得目前瀏覽器 userAgent
+    return /Android|iPhone|iPad|iPod|Mobile/i.test(userAgent); // 判斷是否為常見手機或平板裝置
+  }; // 函式結束
+
   const startLineLogin = async (loginMode: "normal" | "qr") => { // 建立啟動 LINE 登入流程函式
     let childWindow: Window | null = null; // 預先宣告子視窗參考
 
     try { // 開始錯誤捕捉
-      appendDebugLog(`startLineLogin() 被點擊，loginMode=${loginMode}`); // 紀錄按鈕點擊
-      setLineLoading(loginMode); // 記錄目前啟動中的 LINE 模式
+      const isMobile = isMobileDevice(); // 判斷目前是否為手機裝置
+      const effectiveLoginMode = isMobile ? "normal" : loginMode; // 若是手機，強制改用 normal，不走 QR 模式
+
+      appendDebugLog(`startLineLogin() 被點擊，loginMode=${loginMode}，effectiveLoginMode=${effectiveLoginMode}，isMobile=${String(isMobile)}`); // 紀錄按鈕點擊
+      setLineLoading(effectiveLoginMode); // 記錄目前啟動中的 LINE 模式
       setError(""); // 清空舊錯誤訊息
-      setLastPopupState("建立登入視窗中"); // 更新視窗狀態
+      setLastPopupState(isMobile ? "手機改用整頁跳轉" : "建立登入視窗中"); // 更新視窗狀態
 
-      childWindow = window.open("", LINE_LOGIN_WINDOW_NAME); // 用固定名稱開啟登入視窗
-      popupRef.current = childWindow; // 記錄 popup 參考
+      if (!isMobile) { // 若目前不是手機，才走 PC popup 流程
+        childWindow = window.open("", LINE_LOGIN_WINDOW_NAME); // 用固定名稱開啟登入視窗
+        popupRef.current = childWindow; // 記錄 popup 參考
 
-      if (!childWindow) { // 若連空白分頁都無法建立
-        appendDebugLog("無法先建立空白登入分頁，疑似被瀏覽器阻擋"); // 紀錄失敗
-        alert("LINE 登入視窗被瀏覽器阻擋，請允許彈出視窗後再試。"); // 提示使用者
-        setLineLoading(""); // 清空 loading
-        setLastPopupState("被瀏覽器阻擋"); // 更新狀態
-        return; // 中止流程
-      } // 判斷結束
+        if (!childWindow) { // 若連空白分頁都無法建立
+          appendDebugLog("無法先建立空白登入分頁，疑似被瀏覽器阻擋"); // 紀錄失敗
+          alert("LINE 登入視窗被瀏覽器阻擋，請允許彈出視窗後再試。"); // 提示使用者
+          setLineLoading(""); // 清空 loading
+          setLastPopupState("被瀏覽器阻擋"); // 更新狀態
+          return; // 中止流程
+        } // 判斷結束
 
-      childWindow.focus(); // 將該登入視窗帶到前面
-      setLastPopupState("空白登入分頁已建立"); // 更新狀態
-      appendDebugLog("已先同步建立 / 重用固定名稱的 LINE 登入視窗"); // 紀錄成功
+        childWindow.focus(); // 將該登入視窗帶到前面
+        setLastPopupState("空白登入分頁已建立"); // 更新狀態
+        appendDebugLog("已先同步建立 / 重用固定名稱的 LINE 登入視窗"); // 紀錄成功
+      } // PC popup 判斷結束
 
       const response = await fetch("/api/line/start", { // 呼叫產生 LINE 登入網址的 API
         method: "POST", // 使用 POST 方法
         headers: { "Content-Type": "application/json" }, // 指定 JSON 格式
-        body: JSON.stringify({ flow: "manager_bind", loginMode }), // 傳入協助人員加入流程與登入模式
+        body: JSON.stringify({ flow: "manager_bind", loginMode: effectiveLoginMode, isMobile }), // 傳入協助人員加入流程、登入模式與裝置類型
       }); // 請求結束
 
       appendDebugLog(`LINE start API 回應 status=${response.status}`); // 紀錄 API 狀態碼
@@ -359,13 +373,20 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
         if (childWindow && !childWindow.closed) { // 若空白分頁仍存在
           childWindow.close(); // 失敗時關閉空白分頁
         } // 判斷結束
+
         popupRef.current = null; // 清空 popup ref
-        alert(result.message || "無法啟動 LINE 登入流程"); // 顯示提醒視窗
+        setError(result.message || "無法啟動 LINE 登入流程"); // 顯示頁面錯誤訊息
         appendDebugLog("startLineLogin() 中止，API 回應失敗"); // 紀錄中止
         setLineLoading(""); // 結束 loading
         setLastPopupState("啟動失敗"); // 更新狀態
         return; // 中止流程
       } // 回應檢查結束
+
+      if (isMobile) { // 若目前是手機
+        appendDebugLog("手機裝置改用整頁 redirect 到 LINE 登入頁"); // 紀錄行為
+        window.location.href = result.loginUrl; // 直接整頁跳轉到 LINE 登入頁
+        return; // 中止後續 popup 流程
+      } // 手機流程結束
 
       clearPopupMonitor(); // 先清掉舊的監看 timer
 
@@ -394,7 +415,7 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
       } // 判斷結束
       popupRef.current = null; // 清空 popup ref
       appendDebugLog(`startLineLogin() 失敗：${e instanceof Error ? e.message : String(e)}`); // 紀錄錯誤
-      alert("無法啟動 LINE 登入流程"); // 顯示提醒視窗
+      setError("無法啟動 LINE 登入流程"); // 顯示頁面錯誤訊息
       setLineLoading(""); // 結束 loading
       setLastPopupState("執行例外"); // 更新 popup 狀態
     } // 錯誤捕捉結束
@@ -422,19 +443,19 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
 
   if (relayClosing) { // 若目前頁是登入子視窗回來的 relay 頁
     return ( // 顯示簡單處理中畫面
-      <main className="p-4 md:p-6 flex items-center justify-center"> {/* 最外層容器 */} 
-        <div className="rounded-2xl border bg-white px-8 py-6 shadow-sm text-center"> {/* 處理中卡片 */} 
-          <div className="text-xl font-bold mb-2">登入結果處理中</div> {/* 標題 */} 
-          <div className="text-gray-600">正在返回主頁，這個視窗會自動關閉…</div> {/* 說明 */} 
+      <main className="p-4 md:p-6 flex items-center justify-center"> {/* 最外層容器 */}
+        <div className="rounded-2xl border bg-white px-8 py-6 shadow-sm text-center"> {/* 處理中卡片 */}
+          <div className="text-xl font-bold mb-2">登入結果處理中</div> {/* 標題 */}
+          <div className="text-gray-600">正在返回主頁，這個視窗會自動關閉…</div> {/* 說明 */}
         </div>
       </main>
     ); // 回傳畫面結束
   } // relay 畫面結束
 
   return ( // 回傳畫面開始
-    <main className="p-4 md:p-6"> {/* 最外層容器 */} 
-      <div className="mx-auto max-w-5xl"> {/* 內容置中容器 */} 
-        <div className="mb-4"> {/* 返回鍵區塊 */} 
+    <main className="p-4 md:p-6"> {/* 最外層容器 */}
+      <div className="mx-auto max-w-5xl"> {/* 內容置中容器 */}
+        <div className="mb-4"> {/* 返回鍵區塊 */}
           <Link
             href="/"
             className="inline-flex items-center justify-center rounded-xl border-2 border-gray-400 bg-white px-4 py-2 font-semibold text-gray-700 hover:bg-gray-50"
@@ -443,9 +464,9 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
           </Link>
         </div>
 
-        <h1 className="mb-2 text-2xl font-bold">協助人員管理</h1> {/* 頁面標題 */} 
+        <h1 className="mb-2 text-2xl font-bold">協助人員管理</h1> {/* 頁面標題 */}
 
-        <p className="mb-6 text-gray-600"> {/* 頁面說明文字 */} 
+        <p className="mb-6 text-gray-600"> {/* 頁面說明文字 */}
           這裡先測試讀取與 LINE 綁定 Investors3 / members 子集合資料
         </p>
 
@@ -467,7 +488,7 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
           </div>
         )}
 
-        <div className="mb-6 rounded-2xl border bg-white p-5 shadow-sm"> {/* LINE 綁定入口區塊 */} 
+        <div className="mb-6 rounded-2xl border bg-white p-5 shadow-sm"> {/* LINE 綁定入口區塊 */}
           <h2 className="mb-3 text-xl font-semibold">新增協助人員（LINE綁定）</h2>
 
           <p className="mb-4 text-gray-600">
@@ -484,14 +505,16 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
               {lineLoading === "normal" ? "啟動中..." : "前往 LINE 綁定頁"}
             </button>
 
-            <button
-              type="button"
-              onClick={() => startLineLogin("qr")}
-              disabled={lineLoading !== ""}
-              className="inline-flex items-center justify-center rounded-xl border-2 border-green-500 bg-white px-5 py-3 font-semibold text-green-700 hover:bg-green-50 disabled:opacity-50"
-            >
-              {lineLoading === "qr" ? "啟動中..." : "優先顯示 QR 登入"}
-            </button>
+            <div className="hidden md:block"> {/* 手機隱藏，桌機才顯示 QR 登入按鈕 */}
+              <button
+                type="button"
+                onClick={() => startLineLogin("qr")}
+                disabled={lineLoading !== ""}
+                className="inline-flex w-full items-center justify-center rounded-xl border-2 border-green-500 bg-white px-5 py-3 font-semibold text-green-700 hover:bg-green-50 disabled:opacity-50"
+              >
+                {lineLoading === "qr" ? "啟動中..." : "優先顯示 QR 登入"}
+              </button>
+            </div>
 
             <button
               type="button"
@@ -520,7 +543,7 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
         </div>
 
         {showDebugPanel && (
-          <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4"> {/* Debug 區塊 */} 
+          <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4"> {/* Debug 區塊 */}
             <div className="mb-3 flex items-center justify-between gap-3">
               <h3 className="text-sm font-bold text-slate-700">除錯資訊 Debug Log</h3>
               <div className="text-xs text-slate-500">loadManagers 次數：{loadManagersCount}</div>
