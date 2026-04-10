@@ -52,7 +52,7 @@ export default function AppShell({ children }: { children: ReactNode }) { // 建
                   href={item.href} // 導向頁面
                   className={[ // 組合樣式
                     "flex items-center rounded-2xl border px-4 py-4 text-base font-semibold transition", // 基本樣式
-                    active // 判斷是否目前頁面
+                    active
                       ? "border-blue-600 bg-blue-50 text-blue-700 shadow-sm" // 作用中樣式
                       : "border-transparent bg-white text-gray-700 hover:border-gray-200 hover:bg-gray-50", // 一般樣式
                   ].join(" ")} // 合併 className
@@ -60,9 +60,9 @@ export default function AppShell({ children }: { children: ReactNode }) { // 建
                   {item.desktopLabel} {/* 桌機版選單文字 */}
                 </Link>
               ); // 單一選單按鈕結束
-            })} {/* map 結束 */}
-          </nav> {/* 左側選單區塊結束 */}
-        </aside> {/* 左側欄結束 */}
+            })}
+          </nav>
+        </aside>
 
         <div className="flex min-h-screen min-w-0 flex-1 flex-col"> {/* 右側主內容區，吃滿所有剩餘空間 */}
           <header className="border-b border-gray-200 bg-white px-4 py-4 md:hidden"> {/* 手機版上方標題列 */}
@@ -70,13 +70,13 @@ export default function AppShell({ children }: { children: ReactNode }) { // 建
               <p className="text-xs font-medium text-blue-600">Performance 後台</p> {/* 手機版小標題 */}
               <p className="mt-1 text-lg font-bold">投資客案件管理</p> {/* 手機版主標題 */}
             </Link>
-          </header> {/* 手機版上方標題列結束 */}
+          </header>
 
           <main className="flex-1 pb-24 md:pb-0"> {/* 主要內容區，手機底部保留空間避免被底部導覽蓋住 */}
             {children} {/* 顯示各頁實際內容 */}
-          </main> {/* 主要內容區結束 */}
-        </div> {/* 右側主內容區結束 */}
-      </div> {/* 主框架結束 */}
+          </main>
+        </div>
+      </div>
 
       <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-gray-200 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.08)] md:hidden"> {/* 手機底部導覽列 */}
         <div className="grid grid-cols-4"> {/* 四等分按鈕 */}
@@ -87,17 +87,17 @@ export default function AppShell({ children }: { children: ReactNode }) { // 建
               <Link
                 key={item.href} // 設定 React key
                 href={item.href} // 導向頁面
-                className={[ // 組合按鈕樣式
+                className={[
                   "flex min-h-[64px] flex-col items-center justify-center px-2 text-xs font-semibold transition", // 基本樣式
                   active ? "text-blue-600" : "text-gray-500", // 作用中與一般狀態
-                ].join(" ")} // 合併 className
+                ].join(" ")}
               >
                 <span>{item.mobileLabel}</span> {/* 手機版按鈕文字 */}
               </Link>
-            ); // 單一手機按鈕結束
-          })} {/* map 結束 */}
-        </div> {/* 四等分按鈕結束 */}
-      </nav> {/* 手機底部導覽列結束 */}
-    </div> // 最外層背景容器結束
-  ); // 回傳畫面結束
-} // 元件結束
+            );
+          })}
+        </div>
+      </nav>
+    </div>
+  );
+}
