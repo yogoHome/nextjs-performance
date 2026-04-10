@@ -41,6 +41,7 @@ function removeLineResultQuery(pathname: string, searchParams: URLSearchParams):
   nextParams.delete("lineExists"); // 移除 lineExists
   nextParams.delete("lineDisplayName"); // 移除 lineDisplayName
   nextParams.delete("lineError"); // 移除 lineError
+  nextParams.delete("popupDone"); // 移除 popupDone
   const nextQuery = nextParams.toString(); // 重組 query
   return nextQuery ? `${pathname}?${nextQuery}` : pathname; // 若還有其他 query 就保留，否則只回路徑
 } // 函式結束
@@ -223,6 +224,45 @@ export default function ManagersPageClient() { // 匯出 managers 主頁元件
     fetchMembers(); // 執行讀取
   }, [fetchMembers]); // effect 結束
 
+  useEffect(() => { // 監聽 popup callback 成功後從小視窗傳回主頁的訊息
+    if (typeof window === "undefined") return; // 若不在瀏覽器環境則不處理
+
+    const onMessage = async (event: MessageEvent) => { // 建立 message 事件處理函式
+      if (event.origin !== window.location.origin) return; // 只接受同源訊息
+      const payload = event.data; // 取出訊息內容
+      if (!payload || payload.source !== "line-manager-bind-callback") return; // 只接受指定來源訊息
+
+      const lineDisplayName = String(payload.lineDisplayName || ""); // 取出 LINE 顯示名稱
+      const resultType = String(payload.resultType || "success"); // 取出結果類型
+
+      await fetchMembers(); // 先重新讀取名單，確保主頁資料最新
+
+      if (resultType === "exists") { // 若是已存在
+        const storageKey = buildNoticeStorageKey(pathname || "/managers", "exists", lineDisplayName || "empty"); // 建立已存在提醒 key
+        openNoticeDialog("提醒", lineDisplayName ? `這個 LINE 帳號（${lineDisplayName}）已經加入協助管理人員了。` : "這個 LINE 帳號已經加入協助管理人員了。", storageKey); // 顯示已存在提醒
+        return; // 結束處理
+      } // 判斷結束
+
+      if (resultType === "success") { // 若是新增成功
+        const storageKey = buildNoticeStorageKey(pathname || "/managers", "success", lineDisplayName || "empty"); // 建立成功提醒 key
+        openNoticeDialog("提醒", lineDisplayName ? `LINE 帳號（${lineDisplayName}）已成功加入協助管理人員。` : "LINE 帳號已成功加入協助管理人員。", storageKey); // 顯示成功提醒
+        return; // 結束處理
+      } // 判斷結束
+
+      if (resultType === "error") { // 若是錯誤
+        const errorMessage = String(payload.message || "LINE callback 發生錯誤"); // 取出錯誤訊息
+        const storageKey = buildNoticeStorageKey(pathname || "/managers", "error", errorMessage); // 建立錯誤提醒 key
+        openNoticeDialog("提醒", errorMessage, storageKey); // 顯示錯誤提醒
+      } // 判斷結束
+    }; // 函式結束
+
+    window.addEventListener("message", onMessage); // 註冊 message 監聽器
+
+    return () => { // 元件卸載時清理監聽器
+      window.removeEventListener("message", onMessage); // 移除 message 監聽器
+    }; // cleanup 結束
+  }, [fetchMembers, openNoticeDialog, pathname]); // effect 依賴
+
   useEffect(() => { // 處理 LINE 回來後的 query 結果，保證本輪只處理一次
     if (typeof window === "undefined") return; // 若不在瀏覽器環境則不處理
     if (!searchParams) return; // 若 searchParams 尚未準備好則不處理
@@ -261,93 +301,128 @@ export default function ManagersPageClient() { // 匯出 managers 主頁元件
   }, [searchParams, pathname, currentQueryString, cleanLineResultFromUrl, openNoticeDialog, fetchMembers]); // effect 依賴
 
   return ( // 回傳頁面 JSX
-    <div className="mx-auto w-full max-w-5xl px-4 py-6 md:px-6">
-      <div className="mb-6 flex items-center justify-between gap-3">
-        <div>
-          <div className="text-sm text-blue-700">Performance 後台</div>
-          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">協助人員管理</h1>
-          <p className="mt-3 text-base leading-7 text-slate-600">這裡先測試讀取與 LINE 綁定 Investors3 / members 協助人員資料。</p>
-        </div>
+    <div className="mx-auto w-full max-w-5xl px-4 py-6 md:px-6"> {/* 頁面外框 */}
+      <div className="mb-6 flex items-center justify-between gap-3"> {/* 標題列 */}
+        <div> {/* 左側標題區 */}
+          <div className="text-sm text-blue-700">Performance 後台</div> {/* 小標題 */}
+          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">協助人員管理</h1> {/* 主標題 */}
+          <p className="mt-3 text-base leading-7 text-slate-600">這裡先測試讀取與 LINE 綁定 Investors3 / members 協助人員資料。</p> {/* 說明文字 */}
+        </div> {/* 左側標題區結束 */}
 
-        <button type="button" onClick={() => router.push("/dashboard")} className="rounded-3xl border-4 border-slate-400 bg-white px-6 py-4 text-2xl font-extrabold text-slate-900 shadow-sm transition hover:bg-slate-50">
-          返回首頁
-        </button>
-      </div>
+        <button
+          type="button" // 設定按鈕型別
+          onClick={() => router.push("/dashboard")} // 點擊返回首頁
+          className="rounded-3xl border-4 border-slate-400 bg-white px-6 py-4 text-2xl font-extrabold text-slate-900 shadow-sm transition hover:bg-slate-50" // 按鈕樣式
+        >
+          返回首頁 {/* 按鈕文字 */}
+        </button> {/* 返回首頁按鈕結束 */}
+      </div> {/* 標題列結束 */}
 
-      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-        <button type="button" onClick={startLineBind} disabled={isStartingLine} className="rounded-2xl bg-green-600 px-5 py-4 text-lg font-bold text-white shadow-sm transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60">
-          {isStartingLine ? "LINE 綁定啟動中..." : "前往 LINE 綁定頁"}
-        </button>
+      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3"> {/* 操作按鈕區 */}
+        <button
+          type="button" // 設定按鈕型別
+          onClick={startLineBind} // 點擊啟動 LINE 綁定
+          disabled={isStartingLine} // 啟動中禁用按鈕
+          className="rounded-2xl bg-green-600 px-5 py-4 text-lg font-bold text-white shadow-sm transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60" // 按鈕樣式
+        >
+          {isStartingLine ? "LINE 綁定啟動中..." : "前往 LINE 綁定頁"} {/* 動態文字 */}
+        </button> {/* LINE 綁定按鈕結束 */}
 
-        <button type="button" onClick={() => router.push(MANAGER_LOGIN_PATH)} className="rounded-2xl border-2 border-slate-400 bg-white px-5 py-4 text-lg font-bold text-slate-700 shadow-sm transition hover:bg-slate-50">
-          帳號 / 密碼登入
-        </button>
+        <button
+          type="button" // 設定按鈕型別
+          onClick={() => router.push(MANAGER_LOGIN_PATH)} // 點擊前往帳號密碼登入頁
+          className="rounded-2xl border-2 border-slate-400 bg-white px-5 py-4 text-lg font-bold text-slate-700 shadow-sm transition hover:bg-slate-50" // 按鈕樣式
+        >
+          帳號 / 密碼登入 {/* 按鈕文字 */}
+        </button> {/* 帳密登入按鈕結束 */}
 
-        <button type="button" onClick={fetchMembers} disabled={isLoadingMembers} className="rounded-2xl border-2 border-blue-500 bg-white px-5 py-4 text-lg font-bold text-blue-700 shadow-sm transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60">
-          {isLoadingMembers ? "讀取中..." : "重新讀取名單"}
-        </button>
-      </div>
+        <button
+          type="button" // 設定按鈕型別
+          onClick={fetchMembers} // 點擊重新讀取名單
+          disabled={isLoadingMembers} // 讀取中禁用按鈕
+          className="rounded-2xl border-2 border-blue-500 bg-white px-5 py-4 text-lg font-bold text-blue-700 shadow-sm transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60" // 按鈕樣式
+        >
+          {isLoadingMembers ? "讀取中..." : "重新讀取名單"} {/* 動態文字 */}
+        </button> {/* 重新讀取名單按鈕結束 */}
+      </div> {/* 操作按鈕區結束 */}
 
-      {pageError ? <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{pageError}</div> : null}
-      {pageInfo ? <div className="mb-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700">{pageInfo}</div> : null}
+      {pageError ? ( // 若有頁面錯誤
+        <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"> {/* 錯誤提示框 */}
+          {pageError} {/* 顯示錯誤文字 */}
+        </div> // 錯誤提示框結束
+      ) : null} {/* 沒錯誤則不顯示 */}
 
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-5 py-4">
-          <h2 className="text-xl font-extrabold text-slate-900">協助人員名單</h2>
-          <p className="mt-1 text-sm text-slate-500">目前共 {members.length} 筆資料</p>
-        </div>
+      {pageInfo ? ( // 若有頁面資訊
+        <div className="mb-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700"> {/* 資訊提示框 */}
+          {pageInfo} {/* 顯示資訊文字 */}
+        </div> // 資訊提示框結束
+      ) : null} {/* 沒資訊則不顯示 */}
 
-        {isLoadingMembers ? (
-          <div className="px-5 py-8 text-base text-slate-500">名單讀取中...</div>
-        ) : members.length === 0 ? (
-          <div className="px-5 py-8 text-base text-slate-500">目前沒有協助人員資料。</div>
-        ) : (
-          <div className="divide-y divide-slate-200">
-            {members.map((member) => {
-              const displayName = member.name || member.lineDisplayName || "未命名";
-              const pictureUrl = member.linePictureUrl || "";
-              const roleText = member.role || "manager";
+      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"> {/* 名單卡片 */}
+        <div className="border-b border-slate-200 px-5 py-4"> {/* 卡片標題列 */}
+          <h2 className="text-xl font-extrabold text-slate-900">協助人員名單</h2> {/* 名單標題 */}
+          <p className="mt-1 text-sm text-slate-500">目前共 {members.length} 筆資料</p> {/* 筆數 */}
+        </div> {/* 卡片標題列結束 */}
 
-              return (
-                <div key={member.id} className="flex flex-col gap-4 px-5 py-5 md:flex-row md:items-center md:justify-between">
-                  <div className="flex min-w-0 items-center gap-4">
-                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full bg-slate-100">
-                      {pictureUrl ? <img src={pictureUrl} alt={displayName} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-sm font-bold text-slate-400">無圖</div>}
-                    </div>
+        {isLoadingMembers ? ( // 若讀取中
+          <div className="px-5 py-8 text-base text-slate-500">名單讀取中...</div> // 顯示讀取中
+        ) : members.length === 0 ? ( // 若沒有資料
+          <div className="px-5 py-8 text-base text-slate-500">目前沒有協助人員資料。</div> // 顯示無資料文字
+        ) : ( // 若有資料
+          <div className="divide-y divide-slate-200"> {/* 名單內容區 */}
+            {members.map((member) => { // 逐筆渲染名單
+              const displayName = member.name || member.lineDisplayName || "未命名"; // 取顯示名稱
+              const pictureUrl = member.linePictureUrl || ""; // 取頭像
+              const roleText = member.role || "manager"; // 取角色文字
 
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="truncate text-lg font-extrabold text-slate-900">{displayName}</div>
-                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">{roleText}</span>
-                      </div>
+              return ( // 回傳單筆資料
+                <div key={member.id} className="flex flex-col gap-4 px-5 py-5 md:flex-row md:items-center md:justify-between"> {/* 單筆資料外框 */}
+                  <div className="flex min-w-0 items-center gap-4"> {/* 左側資訊區 */}
+                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full bg-slate-100"> {/* 頭像框 */}
+                      {pictureUrl ? ( // 若有頭像
+                        <img src={pictureUrl} alt={displayName} className="h-full w-full object-cover" /> // 顯示頭像
+                      ) : ( // 若沒有頭像
+                        <div className="flex h-full w-full items-center justify-center text-sm font-bold text-slate-400">無圖</div> // 顯示無圖佔位
+                      )} {/* 頭像條件結束 */}
+                    </div> {/* 頭像框結束 */}
 
-                      <div className="mt-2 space-y-1 text-sm text-slate-500">
-                        {member.email ? <div>信箱：{member.email}</div> : null}
-                        {member.lineUserId ? <div className="break-all">LINE ID：{member.lineUserId}</div> : null}
-                        {member.createdAt ? <div>建立時間：{member.createdAt}</div> : null}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                    <div className="min-w-0"> {/* 文字資訊區 */}
+                      <div className="flex flex-wrap items-center gap-2"> {/* 名稱與角色列 */}
+                        <div className="truncate text-lg font-extrabold text-slate-900">{displayName}</div> {/* 名稱 */}
+                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">{roleText}</span> {/* 角色標籤 */}
+                      </div> {/* 名稱與角色列結束 */}
 
-      {showNoticeDialog ? (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/30 px-4">
-          <div className="w-full max-w-2xl rounded-[32px] bg-white px-7 py-7 shadow-2xl">
-            <div className="text-4xl font-extrabold text-slate-900">{noticeTitle}</div>
-            <div className="mt-8 whitespace-pre-wrap text-2xl leading-[1.9] text-slate-600">{noticeText}</div>
-            <div className="mt-10 flex justify-end">
-              <button type="button" onClick={handleNoticeConfirm} className="rounded-[24px] bg-amber-400 px-8 py-5 text-2xl font-bold text-white shadow-sm transition hover:bg-amber-500">
-                確定
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
-}
+                      <div className="mt-2 space-y-1 text-sm text-slate-500"> {/* 詳細資訊區 */}
+                        {member.email ? <div>信箱：{member.email}</div> : null} {/* Email */}
+                        {member.lineUserId ? <div className="break-all">LINE ID：{member.lineUserId}</div> : null} {/* LINE ID */}
+                        {member.createdAt ? <div>建立時間：{member.createdAt}</div> : null} {/* 建立時間 */}
+                      </div> {/* 詳細資訊區結束 */}
+                    </div> {/* 文字資訊區結束 */}
+                  </div> {/* 左側資訊區結束 */}
+                </div> // 單筆資料外框結束
+              ); // return 結束
+            })} {/* map 結束 */}
+          </div> // 名單內容區結束
+        )} {/* 條件渲染結束 */}
+      </div> {/* 名單卡片結束 */}
+
+      {showNoticeDialog ? ( // 若需顯示提醒視窗
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/30 px-4"> {/* 遮罩 */}
+          <div className="w-full max-w-2xl rounded-[32px] bg-white px-7 py-7 shadow-2xl"> {/* Dialog 容器 */}
+            <div className="text-4xl font-extrabold text-slate-900">{noticeTitle}</div> {/* 標題 */}
+            <div className="mt-8 whitespace-pre-wrap text-2xl leading-[1.9] text-slate-600">{noticeText}</div> {/* 內容 */}
+            <div className="mt-10 flex justify-end"> {/* 按鈕列 */}
+              <button
+                type="button" // 設定按鈕型別
+                onClick={handleNoticeConfirm} // 點擊關閉視窗
+                className="rounded-[24px] bg-amber-400 px-8 py-5 text-2xl font-bold text-white shadow-sm transition hover:bg-amber-500" // 按鈕樣式
+              >
+                確定 {/* 按鈕文字 */}
+              </button> {/* 確定按鈕結束 */}
+            </div> {/* 按鈕列結束 */}
+          </div> {/* Dialog 容器結束 */}
+        </div> // 遮罩結束
+      ) : null} {/* 不顯示時回傳 null */}
+    </div> // 頁面外框結束
+  ); // JSX 回傳結束
+} // 元件結束
