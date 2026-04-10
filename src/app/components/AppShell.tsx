@@ -72,9 +72,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             </Link>
           </header>
 
-          <main className="flex-1 pb-24 md:pb-0">
-            {children}
-          </main>
+          <main className="flex-1 pb-24 md:pb-0">{children}</main>
         </div>
       </div>
 

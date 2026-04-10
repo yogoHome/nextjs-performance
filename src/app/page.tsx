@@ -25,17 +25,19 @@ const quickLinks = [
 
 export default function HomePage() {
   return (
-    <main className="min-h-full p-4 md:p-8">
-      <div className="mx-auto max-w-5xl space-y-6">
+    <main className="p-4 md:p-6">
+      <div className="w-full max-w-[1400px]">
         <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm md:p-8">
           <p className="text-sm font-medium text-blue-600">Performance 後台</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight md:text-4xl">投資客案件管理系統</h1>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight md:text-4xl">
+            投資客案件管理系統
+          </h1>
           <p className="mt-3 text-sm leading-7 text-gray-600 md:text-base">
-            目前已切換成你指定的版型：桌機版使用左側直式導覽，手機版使用底部四按鈕導覽列。
+            目前版型：桌機版使用左側直式導覽，手機版使用底部四按鈕導覽列。
           </p>
         </section>
 
-        <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <section className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
           {quickLinks.map((item) => (
             <Link
               key={item.href}
