@@ -201,8 +201,19 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
     loadManagers("initial_mount"); // 讀取協助人員列表
   }, [appendDebugLog, loadManagers]); // 依賴項目
 
-  useEffect(() => { // 依 query 參數顯示提示，並自動清掉網址
+  useEffect(() => { // 依 query 參數顯示提示，並自動清掉網址，但不自動關閉 dialog
     clearCleanupQueryTimer(); // 先清掉舊 timer
+
+    const hasQueryNotice = Boolean(lineSuccess || lineError || lineExists || systemLineLogin || popupLoginDone); // 判斷是否有提示參數
+
+    appendDebugLog(`query 參數變化：lineSuccess=${lineSuccess ?? ""}，lineError=${lineError ?? ""}，lineExists=${lineExists ?? ""}，systemLineLogin=${systemLineLogin ?? ""}，popupLoginDone=${popupLoginDone ?? ""}`); // 紀錄 query 變化
+    resetTransientState(); // 清空暫存狀態
+
+    if (!hasQueryNotice) { // 若目前沒有任何提示參數
+      return () => { // effect 清理時執行
+        clearCleanupQueryTimer(); // 清除 timer
+      }; // 清理結束
+    } // 判斷結束
 
     let nextNoticeType: "" | "success" | "warning" | "error" = ""; // 記錄提示類型
     let nextNoticeText = ""; // 記錄提示文字
@@ -226,23 +237,16 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
 
     setNoticeType(nextNoticeType); // 更新提示類型
     setNoticeText(nextNoticeText); // 更新提示文字
-    setShowNoticeDialog(Boolean(nextNoticeType && nextNoticeText)); // 若有提示就顯示中間視窗
+    setShowNoticeDialog(Boolean(nextNoticeType && nextNoticeText)); // 顯示中間提示視窗
 
-    appendDebugLog(`query 參數變化：lineSuccess=${lineSuccess ?? ""}，lineError=${lineError ?? ""}，lineExists=${lineExists ?? ""}，systemLineLogin=${systemLineLogin ?? ""}，popupLoginDone=${popupLoginDone ?? ""}`); // 紀錄 query 變化
-    resetTransientState(); // 清空暫存狀態
-
-    const hasQueryNotice = Boolean(lineSuccess || lineError || lineExists || systemLineLogin || popupLoginDone); // 判斷是否有提示參數
-
-    if (hasQueryNotice) { // 若目前網址有提示參數
-      cleanupQueryTimerRef.current = window.setTimeout(() => { // 延遲後清掉網址參數
-        const cleanUrl = `${window.location.origin}/managers`; // 建立乾淨網址
-        window.history.replaceState({}, "", cleanUrl); // 不重整頁面，直接把網址改回 /managers
-        appendDebugLog("已自動清除網址提示參數，網址回復為 /managers"); // 紀錄網址清理
-      }, 600); // 稍微延遲，避免使用者完全看不到 query 作用
-    } // 判斷結束
+    cleanupQueryTimerRef.current = window.setTimeout(() => { // 延遲後清掉網址參數
+      const cleanUrl = `${window.location.origin}/managers`; // 建立乾淨網址
+      window.history.replaceState({}, "", cleanUrl); // 不重整頁面，直接把網址改回 /managers
+      appendDebugLog("已自動清除網址提示參數，網址回復為 /managers"); // 紀錄網址清理
+    }, 600); // 延遲執行
 
     return () => { // effect 清理時執行
-      clearCleanupQueryTimer(); // 清除本輪 timer
+      clearCleanupQueryTimer(); // 清除 timer
     }; // 清理結束
   }, [appendDebugLog, clearCleanupQueryTimer, lineDisplayName, lineError, lineExists, lineSuccess, popupLoginDone, resetTransientState, systemLineLogin]); // 依賴項目
 
@@ -326,19 +330,30 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
     return /Android|iPhone|iPad|iPod|Mobile/i.test(userAgent); // 判斷是否為常見手機或平板裝置
   }; // 函式結束
 
+  const isLineInAppBrowser = () => { // 建立判斷是否為 LINE 內建瀏覽器函式
+    if (typeof window === "undefined") { // 若目前不是瀏覽器環境
+      return false; // 回傳 false
+    } // 判斷結束
+
+    const userAgent = window.navigator.userAgent || ""; // 取得目前瀏覽器 userAgent
+    return /Line\//i.test(userAgent); // 判斷是否包含 LINE 內建瀏覽器特徵
+  }; // 函式結束
+
   const startLineLogin = async (loginMode: "normal" | "qr") => { // 建立啟動 LINE 登入流程函式
     let childWindow: Window | null = null; // 預先宣告子視窗參考
 
     try { // 開始錯誤捕捉
       const isMobile = isMobileDevice(); // 判斷目前是否為手機裝置
-      const effectiveLoginMode = isMobile ? "normal" : loginMode; // 若是手機，強制改用 normal，不走 QR 模式
+      const inLineBrowser = isLineInAppBrowser(); // 判斷是否為 LINE 內建瀏覽器
+      const useSameTabRedirect = isMobile || inLineBrowser; // 手機或 LINE 內建瀏覽器一律改用同頁跳轉
+      const effectiveLoginMode = useSameTabRedirect ? "normal" : loginMode; // 同頁跳轉時一律不用 QR 模式
 
-      appendDebugLog(`startLineLogin() 被點擊，loginMode=${loginMode}，effectiveLoginMode=${effectiveLoginMode}，isMobile=${String(isMobile)}`); // 紀錄按鈕點擊
+      appendDebugLog(`startLineLogin() 被點擊，loginMode=${loginMode}，effectiveLoginMode=${effectiveLoginMode}，isMobile=${String(isMobile)}，inLineBrowser=${String(inLineBrowser)}，useSameTabRedirect=${String(useSameTabRedirect)}`); // 紀錄按鈕點擊
       setLineLoading(effectiveLoginMode); // 記錄目前啟動中的 LINE 模式
       setError(""); // 清空舊錯誤訊息
-      setLastPopupState(isMobile ? "手機改用整頁跳轉" : "建立登入視窗中"); // 更新視窗狀態
+      setLastPopupState(useSameTabRedirect ? "改用同頁跳轉" : "建立登入視窗中"); // 更新視窗狀態
 
-      if (!isMobile) { // 若目前不是手機，才走 PC popup 流程
+      if (!useSameTabRedirect) { // 若目前不是手機也不是 LINE 內建瀏覽器，才走 PC popup 流程
         childWindow = window.open("", LINE_LOGIN_WINDOW_NAME); // 用固定名稱開啟登入視窗
         popupRef.current = childWindow; // 記錄 popup 參考
 
@@ -358,7 +373,7 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
       const response = await fetch("/api/line/start", { // 呼叫產生 LINE 登入網址的 API
         method: "POST", // 使用 POST 方法
         headers: { "Content-Type": "application/json" }, // 指定 JSON 格式
-        body: JSON.stringify({ flow: "manager_bind", loginMode: effectiveLoginMode, isMobile }), // 傳入協助人員加入流程、登入模式與裝置類型
+        body: JSON.stringify({ flow: "manager_bind", loginMode: effectiveLoginMode, isMobile: useSameTabRedirect }), // 傳入協助人員加入流程、登入模式與裝置類型
       }); // 請求結束
 
       appendDebugLog(`LINE start API 回應 status=${response.status}`); // 紀錄 API 狀態碼
@@ -379,11 +394,11 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
         return; // 中止流程
       } // 回應檢查結束
 
-      if (isMobile) { // 若目前是手機
-        appendDebugLog("手機裝置改用整頁 redirect 到 LINE 登入頁"); // 紀錄行為
-        window.location.href = result.loginUrl; // 直接整頁跳轉到 LINE 登入頁
+      if (useSameTabRedirect) { // 若目前使用同頁跳轉模式
+        appendDebugLog("目前為手機或 LINE 內建瀏覽器，改用同頁 location.replace 跳轉到 LINE 登入頁"); // 紀錄行為
+        window.location.replace(result.loginUrl); // 使用同頁取代跳轉，避免越開越多頁
         return; // 中止後續 popup 流程
-      } // 手機流程結束
+      } // 同頁流程結束
 
       clearPopupMonitor(); // 先清掉舊的監看 timer
 
@@ -421,7 +436,18 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
   const goPasswordLogin = () => { // 建立帳號密碼登入固定視窗函式
     appendDebugLog("goPasswordLogin() 被點擊"); // 紀錄帳密按鈕點擊
 
-    const loginWindow = window.open(`/login?flow=manager_bind&popup=1&t=${Date.now()}`, PASSWORD_LOGIN_WINDOW_NAME); // 以固定名稱開啟登入頁
+    const isMobile = isMobileDevice(); // 判斷目前是否為手機裝置
+    const inLineBrowser = isLineInAppBrowser(); // 判斷是否為 LINE 內建瀏覽器
+    const useSameTabRedirect = isMobile || inLineBrowser; // 手機或 LINE 內建瀏覽器改用同頁跳轉
+    const loginUrl = `/login?flow=manager_bind&popup=1&t=${Date.now()}`; // 建立登入頁網址
+
+    if (useSameTabRedirect) { // 若目前使用同頁跳轉模式
+      appendDebugLog("帳號 / 密碼登入改用同頁 location.assign 跳轉"); // 紀錄行為
+      window.location.assign(loginUrl); // 使用同頁跳轉
+      return; // 中止後續 popup 流程
+    } // 判斷結束
+
+    const loginWindow = window.open(loginUrl, PASSWORD_LOGIN_WINDOW_NAME); // 以固定名稱開啟登入頁
 
     if (!loginWindow) { // 若新分頁被瀏覽器阻擋
       alert("帳號 / 密碼登入視窗被瀏覽器阻擋，請允許彈出視窗後再試。"); // 提示使用者
