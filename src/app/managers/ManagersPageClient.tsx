@@ -422,19 +422,19 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
 
   if (relayClosing) { // 若目前頁是登入子視窗回來的 relay 頁
     return ( // 顯示簡單處理中畫面
-      <main className="min-h-screen bg-gray-50 flex items-center justify-center p-6"> {/* 最外層容器 */}
-        <div className="rounded-2xl border bg-white px-8 py-6 shadow-sm text-center"> {/* 處理中卡片 */}
-          <div className="text-xl font-bold mb-2">登入結果處理中</div> {/* 標題 */}
-          <div className="text-gray-600">正在返回主頁，這個視窗會自動關閉…</div> {/* 說明 */}
+      <main className="p-4 md:p-6 flex items-center justify-center"> {/* 最外層容器 */} 
+        <div className="rounded-2xl border bg-white px-8 py-6 shadow-sm text-center"> {/* 處理中卡片 */} 
+          <div className="text-xl font-bold mb-2">登入結果處理中</div> {/* 標題 */} 
+          <div className="text-gray-600">正在返回主頁，這個視窗會自動關閉…</div> {/* 說明 */} 
         </div>
       </main>
     ); // 回傳畫面結束
   } // relay 畫面結束
 
   return ( // 回傳畫面開始
-    <main className="min-h-screen bg-gray-50 p-6"> {/* 最外層容器 */}
-      <div className="max-w-5xl mx-auto"> {/* 內容置中容器 */}
-        <div className="mb-4"> {/* 返回鍵區塊 */}
+    <main className="p-4 md:p-6"> {/* 最外層容器 */} 
+      <div className="mx-auto max-w-5xl"> {/* 內容置中容器 */} 
+        <div className="mb-4"> {/* 返回鍵區塊 */} 
           <Link
             href="/"
             className="inline-flex items-center justify-center rounded-xl border-2 border-gray-400 bg-white px-4 py-2 font-semibold text-gray-700 hover:bg-gray-50"
@@ -443,43 +443,43 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
           </Link>
         </div>
 
-        <h1 className="text-2xl font-bold mb-2">協助人員管理</h1> {/* 頁面標題 */}
+        <h1 className="mb-2 text-2xl font-bold">協助人員管理</h1> {/* 頁面標題 */} 
 
-        <p className="text-gray-600 mb-6"> {/* 頁面說明文字 */}
+        <p className="mb-6 text-gray-600"> {/* 頁面說明文字 */} 
           這裡先測試讀取與 LINE 綁定 Investors3 / members 子集合資料
         </p>
 
         {noticeType === "success" && noticeText && (
-          <div className="mb-4 rounded-xl bg-green-50 border border-green-200 p-4 text-green-700">
+          <div className="mb-4 rounded-xl border border-green-200 bg-green-50 p-4 text-green-700">
             {noticeText}
           </div>
         )}
 
         {noticeType === "warning" && noticeText && (
-          <div className="mb-4 rounded-xl bg-yellow-50 border border-yellow-200 p-4 text-yellow-700">
+          <div className="mb-4 rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-yellow-700">
             {noticeText}
           </div>
         )}
 
         {noticeType === "error" && noticeText && (
-          <div className="mb-4 rounded-xl bg-red-50 border border-red-200 p-4 text-red-600">
+          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-red-600">
             {noticeText}
           </div>
         )}
 
-        <div className="rounded-2xl bg-white border shadow-sm p-5 mb-6"> {/* LINE 綁定入口區塊 */}
-          <h2 className="text-xl font-semibold mb-3">新增協助人員（LINE綁定）</h2>
+        <div className="mb-6 rounded-2xl border bg-white p-5 shadow-sm"> {/* LINE 綁定入口區塊 */} 
+          <h2 className="mb-3 text-xl font-semibold">新增協助人員（LINE綁定）</h2>
 
-          <p className="text-gray-600 mb-4">
+          <p className="mb-4 text-gray-600">
             不再手動輸入 memberId、姓名、Email，改由 LINE 登入後自動取得 LINE 資料並回填到 Investors3 的 members 子集合。
           </p>
 
-          <div className="flex flex-col md:flex-row gap-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
             <button
               type="button"
               onClick={() => startLineLogin("normal")}
               disabled={lineLoading !== ""}
-              className="inline-flex items-center justify-center rounded-xl bg-green-500 text-white px-5 py-3 font-semibold hover:bg-green-600 disabled:opacity-50"
+              className="inline-flex items-center justify-center rounded-xl bg-green-500 px-5 py-3 font-semibold text-white hover:bg-green-600 disabled:opacity-50"
             >
               {lineLoading === "normal" ? "啟動中..." : "前往 LINE 綁定頁"}
             </button>
@@ -488,7 +488,7 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
               type="button"
               onClick={() => startLineLogin("qr")}
               disabled={lineLoading !== ""}
-              className="inline-flex items-center justify-center rounded-xl border-2 border-green-500 bg-white text-green-700 px-5 py-3 font-semibold hover:bg-green-50 disabled:opacity-50"
+              className="inline-flex items-center justify-center rounded-xl border-2 border-green-500 bg-white px-5 py-3 font-semibold text-green-700 hover:bg-green-50 disabled:opacity-50"
             >
               {lineLoading === "qr" ? "啟動中..." : "優先顯示 QR 登入"}
             </button>
@@ -520,13 +520,13 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
         </div>
 
         {showDebugPanel && (
-          <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4"> {/* Debug 區塊 */}
-            <div className="flex items-center justify-between gap-3 mb-3">
+          <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4"> {/* Debug 區塊 */} 
+            <div className="mb-3 flex items-center justify-between gap-3">
               <h3 className="text-sm font-bold text-slate-700">除錯資訊 Debug Log</h3>
               <div className="text-xs text-slate-500">loadManagers 次數：{loadManagersCount}</div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-3 text-xs text-slate-600 mb-3">
+            <div className="mb-3 grid gap-3 text-xs text-slate-600 md:grid-cols-2">
               <div>didHydrate：{String(didHydrate)}</div>
               <div>loading：{String(loading)}</div>
               <div>lineLoading：{lineLoading || "(空)"}</div>
@@ -535,7 +535,7 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
               <div>popupState：{lastPopupState}</div>
             </div>
 
-            <div className="max-h-64 overflow-y-auto rounded-xl border bg-white p-3 text-xs text-slate-700 space-y-2">
+            <div className="max-h-64 space-y-2 overflow-y-auto rounded-xl border bg-white p-3 text-xs text-slate-700">
               {debugLogs.length === 0 ? (
                 <div>目前尚無 debug 訊息</div>
               ) : (
@@ -550,19 +550,19 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
         )}
 
         {loading && (
-          <div className="rounded-xl bg-white border p-4 shadow-sm">
+          <div className="rounded-xl border bg-white p-4 shadow-sm">
             讀取中...
           </div>
         )}
 
         {!loading && error && (
-          <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-red-600">
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-600">
             {error}
           </div>
         )}
 
         {!loading && !error && items.length === 0 && (
-          <div className="rounded-xl bg-white border p-4 shadow-sm">
+          <div className="rounded-xl border bg-white p-4 shadow-sm">
             目前沒有協助人員資料
           </div>
         )}
@@ -572,25 +572,29 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
             {items.map((item) => (
               <div
                 key={item.id}
-                className="rounded-2xl bg-white border shadow-sm p-5"
+                className="rounded-2xl border bg-white p-5 shadow-sm"
               >
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div className="flex min-w-0 items-center gap-4">
                     {item.linePictureUrl ? (
                       <img
                         src={item.linePictureUrl}
                         alt={item.name || item.id}
-                        className="w-16 h-16 rounded-full object-cover border"
+                        className="h-16 w-16 shrink-0 rounded-full border object-cover"
                       />
                     ) : (
-                      <div className="w-16 h-16 rounded-full border bg-gray-100 flex items-center justify-center text-gray-400 text-sm">
+                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border bg-gray-100 text-sm text-gray-400">
                         無頭像
                       </div>
                     )}
 
-                    <div className="space-y-1">
-                      <div className="text-lg font-semibold">{item.name || "未填寫姓名"}</div>
-                      <div className="text-sm text-gray-500">文件ID：{item.id}</div>
+                    <div className="min-w-0 space-y-1">
+                      <div className="break-words text-lg font-semibold">
+                        {item.name || "未填寫姓名"}
+                      </div>
+                      <div className="break-all text-sm text-gray-500">
+                        文件ID：{item.id}
+                      </div>
                     </div>
                   </div>
 
@@ -598,7 +602,7 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
                     type="button"
                     onClick={() => handleDelete(item.id, item.role)}
                     disabled={deletingId === item.id || item.role === "owner"}
-                    className="rounded-xl bg-red-500 text-white px-4 py-2 font-semibold disabled:opacity-50"
+                    className="w-full rounded-xl bg-red-500 px-4 py-2 font-semibold text-white disabled:opacity-50 md:w-auto"
                   >
                     {item.role === "owner" ? "owner不可刪除" : deletingId === item.id ? "刪除中..." : "刪除此名單"}
                   </button>
