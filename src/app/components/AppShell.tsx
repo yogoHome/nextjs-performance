@@ -32,8 +32,8 @@ export default function AppShell({ children }: { children: ReactNode }) { // 建
 
   return ( // 回傳畫面開始
     <div className="min-h-screen bg-gray-50 text-gray-900"> {/* 最外層背景容器 */}
-      <div className="flex min-h-screen w-full"> {/* 整個後台主框架，改為全寬，不再置中限制 */}
-        <aside className="hidden w-[220px] shrink-0 border-r border-gray-200 bg-white md:flex md:flex-col"> {/* 桌機左側欄，改窄一點，讓右側內容更大 */}
+      <div className="flex min-h-screen w-full"> {/* 整個後台主框架 */}
+        <aside className="hidden w-[220px] shrink-0 border-r border-gray-200 bg-white md:flex md:flex-col"> {/* 桌機左側欄 */}
           <div className="border-b border-gray-200 px-5 py-6"> {/* 左上品牌區塊 */}
             <Link href="/" className="block"> {/* 品牌返回首頁連結 */}
               <p className="text-sm font-medium text-blue-600">Performance 後台</p> {/* 小標題 */}
@@ -46,58 +46,58 @@ export default function AppShell({ children }: { children: ReactNode }) { // 建
             {navItems.map((item) => { // 逐筆產生選單按鈕
               const active = isItemActive(pathname, item.href); // 判斷目前是否作用中
 
-              return ( // 回傳單一選單按鈕
+              return (
                 <Link
-                  key={item.href} // 設定 React key
-                  href={item.href} // 導向頁面
-                  className={[ // 組合樣式
-                    "flex items-center rounded-2xl border px-4 py-4 text-base font-semibold transition", // 基本樣式
+                  key={item.href}
+                  href={item.href}
+                  className={[
+                    "flex items-center rounded-2xl border px-4 py-4 text-base font-semibold transition",
                     active
-                      ? "border-blue-600 bg-blue-50 text-blue-700 shadow-sm" // 作用中樣式
-                      : "border-transparent bg-white text-gray-700 hover:border-gray-200 hover:bg-gray-50", // 一般樣式
-                  ].join(" ")} // 合併 className
+                      ? "border-blue-600 bg-blue-50 text-blue-700 shadow-sm"
+                      : "border-transparent bg-white text-gray-700 hover:border-gray-200 hover:bg-gray-50",
+                  ].join(" ")}
                 >
-                  {item.desktopLabel} {/* 桌機版選單文字 */}
+                  {item.desktopLabel}
                 </Link>
-              ); // 單一選單按鈕結束
+              );
             })}
           </nav>
         </aside>
 
-        <div className="flex min-h-screen min-w-0 flex-1 flex-col"> {/* 右側主內容區，吃滿所有剩餘空間 */}
+        <div className="flex min-h-screen min-w-0 flex-1 flex-col"> {/* 右側主內容區 */}
           <header className="border-b border-gray-200 bg-white px-4 py-4 md:hidden"> {/* 手機版上方標題列 */}
-            <Link href="/" className="block"> {/* 手機版返回首頁連結 */}
-              <p className="text-xs font-medium text-blue-600">Performance 後台</p> {/* 手機版小標題 */}
-              <p className="mt-1 text-lg font-bold">投資客案件管理</p> {/* 手機版主標題 */}
+            <Link href="/" className="block">
+              <p className="text-xs font-medium text-blue-600">Performance 後台</p>
+              <p className="mt-1 text-lg font-bold">投資客案件管理</p>
             </Link>
           </header>
 
-          <main className="flex-1 pb-24 md:pb-0"> {/* 主要內容區，手機底部保留空間避免被底部導覽蓋住 */}
-            {children} {/* 顯示各頁實際內容 */}
+          <main className="flex-1 pb-24 md:pb-0"> {/* 手機底部留空間 */}
+            {children}
           </main>
         </div>
       </div>
 
       <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-gray-200 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.08)] md:hidden"> {/* 手機底部導覽列 */}
-        <div className="grid grid-cols-4"> {/* 四等分按鈕 */}
+        <div className="grid grid-cols-4">
           {navItems.map((item) => { // 逐筆產生手機底部按鈕
             const active = isItemActive(pathname, item.href); // 判斷目前頁面是否作用中
 
-            return ( // 回傳單一手機按鈕
+            return (
               <Link
-                key={item.href} // 設定 React key
-                href={item.href} // 導向頁面
+                key={item.href}
+                href={item.href}
                 className={[
-                  "flex min-h-[64px] flex-col items-center justify-center px-2 text-xs font-semibold transition", // 基本樣式
-                  active ? "text-blue-600" : "text-gray-500", // 作用中與一般狀態
+                  "flex min-h-[64px] flex-col items-center justify-center px-2 text-xs font-semibold transition",
+                  active ? "text-blue-600" : "text-gray-500",
                 ].join(" ")}
               >
-                <span>{item.mobileLabel}</span> {/* 手機版按鈕文字 */}
+                <span>{item.mobileLabel}</span>
               </Link>
             );
           })}
         </div>
       </nav>
     </div>
-  );
-}
+  ); // 回傳畫面結束
+} // 元件結束
