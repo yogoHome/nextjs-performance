@@ -454,7 +454,7 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
 
   return ( // 回傳畫面開始
     <main className="p-4 md:p-6"> {/* 最外層容器 */}
-      <div className="mx-auto max-w-5xl"> {/* 內容置中容器 */}
+      <div className="w-full max-w-[1400px]"> {/* 內容容器 */}
         <div className="mb-4"> {/* 返回鍵區塊 */}
           <Link
             href="/"
