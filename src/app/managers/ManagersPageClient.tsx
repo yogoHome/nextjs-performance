@@ -237,11 +237,6 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
         appendDebugLog("已自動清除網址提示參數，網址回復為 /managers"); // 紀錄網址清理
       }, 600); // 稍微延遲，避免使用者完全看不到 query 作用
 
-      noticeTimerRef.current = window.setTimeout(() => { // 讓提示再多留一下
-        setNoticeType(""); // 清空提示類型
-        setNoticeText(""); // 清空提示文字
-        appendDebugLog("提示訊息已自動隱藏"); // 紀錄提示消失
-      }, 3000); // 三秒後自動消失
     } // 判斷結束
 
     return () => { // effect 清理時執行
@@ -440,7 +435,11 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
     appendDebugLog("handleManualReload() 被點擊"); // 紀錄手動重新讀取
     loadManagers("manual_reload_button"); // 手動重新讀資料
   }; // 函式結束
-
+  const closeNotice = () => { // 建立手動關閉提示訊息函式
+    setNoticeType(""); // 清空提示類型
+    setNoticeText(""); // 清空提示文字
+    appendDebugLog("提示訊息已手動關閉"); // 紀錄 debug 訊息
+  }; // 函式結束
   if (relayClosing) { // 若目前頁是登入子視窗回來的 relay 頁
     return ( // 顯示簡單處理中畫面
       <main className="p-4 md:p-6 flex items-center justify-center"> {/* 最外層容器 */}
@@ -470,23 +469,43 @@ export default function ManagersPageClient() { // 協助人員管理頁元件開
           這裡先測試讀取與 LINE 綁定 Investors3 / members 子集合資料
         </p>
 
-        {noticeType === "success" && noticeText && (
-          <div className="mb-4 rounded-xl border border-green-200 bg-green-50 p-4 text-green-700">
-            {noticeText}
-          </div>
-        )}
+{noticeType === "success" && noticeText && (
+  <div className="mb-4 flex items-start justify-between gap-3 rounded-xl border border-green-200 bg-green-50 p-4 text-green-700">
+    <div className="leading-7">{noticeText}</div>
+    <button
+      type="button"
+      onClick={closeNotice}
+      className="shrink-0 rounded-lg border border-green-300 bg-white px-3 py-1 text-sm font-semibold text-green-700 hover:bg-green-100"
+    >
+      關閉
+    </button>
+  </div>
+)}
 
-        {noticeType === "warning" && noticeText && (
-          <div className="mb-4 rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-yellow-700">
-            {noticeText}
-          </div>
-        )}
-
-        {noticeType === "error" && noticeText && (
-          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-red-600">
-            {noticeText}
-          </div>
-        )}
+{noticeType === "warning" && noticeText && (
+  <div className="mb-4 flex items-start justify-between gap-3 rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-yellow-700">
+    <div className="leading-7">{noticeText}</div>
+    <button
+      type="button"
+      onClick={closeNotice}
+      className="shrink-0 rounded-lg border border-yellow-300 bg-white px-3 py-1 text-sm font-semibold text-yellow-700 hover:bg-yellow-100"
+    >
+      關閉
+    </button>
+  </div>
+)}
+{noticeType === "error" && noticeText && (
+  <div className="mb-4 flex items-start justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-600">
+    <div className="leading-7">{noticeText}</div>
+    <button
+      type="button"
+      onClick={closeNotice}
+      className="shrink-0 rounded-lg border border-red-300 bg-white px-3 py-1 text-sm font-semibold text-red-600 hover:bg-red-100"
+    >
+      關閉
+    </button>
+  </div>
+)}
 
         <div className="mb-6 rounded-2xl border bg-white p-5 shadow-sm"> {/* LINE 綁定入口區塊 */}
           <h2 className="mb-3 text-xl font-semibold">新增協助人員（LINE綁定）</h2>
