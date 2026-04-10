@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"; // 匯入 Next.js Route Handler 所需的 request 與 response 型別
 import crypto from "crypto"; // 匯入 Node.js 內建 crypto，用來產生安全的 state 字串
 
+const DEFAULT_VENDOR_ID = process.env.DEFAULT_VENDOR_ID || "vendor-test-001"; // 預設備援 vendorId，若你有正式廠商代號可改成自己的值
+
 function isMobileUserAgent(userAgent: string): boolean { // 判斷是否為手機或平板裝置的 UA
   return /iPhone|iPad|iPod|Android|Mobile|Windows Phone/i.test(userAgent); // 用常見行動裝置關鍵字判斷
 } // 函式結束
@@ -38,15 +40,21 @@ export async function GET(request: NextRequest) { // 匯出 GET route handler
     const flow = url.searchParams.get("flow") || "manager_bind"; // 讀取流程代號，預設 manager_bind
     const preferSameTab = toBool(url.searchParams.get("preferSameTab")); // 讀取前端要求是否偏好同頁
     const disableAutoLogin = toBool(url.searchParams.get("disableAutoLogin")); // 讀取是否停用 auto-login 的 fallback 開關
+    const vendorId = url.searchParams.get("vendorId") || DEFAULT_VENDOR_ID; // 讀取 vendorId，若沒傳就用預設值
     const userAgent = request.headers.get("user-agent") || ""; // 取得目前請求的 User-Agent
     const isMobile = isMobileUserAgent(userAgent); // 判斷是否為手機裝置
     const isLineInApp = isLineInAppUserAgent(userAgent); // 判斷是否為 LINE 內建瀏覽器
+
+    if (!vendorId) { // 若 vendorId 仍然不存在
+      return NextResponse.json({ ok: false, error: "缺少 vendorId，且 DEFAULT_VENDOR_ID 也未設定。" }, { status: 400 }); // 回傳錯誤
+    } // 判斷結束
 
     const mode = isMobile || isLineInApp ? "normal" : "qr"; // 手機與 LINE 內建瀏覽器固定 normal，桌機才可用 qr
     const finalPreferSameTab = preferSameTab || isMobile || isLineInApp; // 手機或 LINE 內一律視為同頁跳轉
 
     const statePayload = { // 建立要塞進 state 的資訊物件
       nonce: crypto.randomUUID(), // 產生一次性隨機值，避免 CSRF 與重放
+      vendorId, // 補上 vendorId，讓 callback 可正確寫入 Investors3/{vendorId}/members
       flow, // 記錄目前流程代號
       returnTo: "/managers", // 成功後預設回 managers 頁
       mode, // 記錄這次後端判定的模式
@@ -78,18 +86,19 @@ export async function GET(request: NextRequest) { // 匯出 GET route handler
       {
         ok: true, // 表示請求成功
         flow, // 回傳此次流程代號
+        vendorId, // 回傳此次使用的 vendorId
         mode, // 回傳此次模式 normal / qr
         loginUrl, // 回傳 LINE 授權網址
         preferSameTab: finalPreferSameTab, // 回傳前端是否應同頁跳轉
         disableAutoLogin, // 回傳這次是否停用 auto-login
-        debug: { // 回傳少量除錯資訊，方便你觀察目前判斷是否正確
+        debug: { // 回傳少量除錯資訊
           isMobile, // 是否判斷為手機
           isLineInApp, // 是否判斷為 LINE 內建瀏覽器
           callbackUrl, // 實際使用的 callback URL
           appBaseUrl, // 實際使用的 base URL
         }, // debug 結束
       },
-      { status: 200 }, // 設定 HTTP 狀態碼為 200
+      { status: 200 } // 設定 HTTP 狀態碼為 200
     ); // JSON 回傳結束
   } catch (error: any) { // 捕捉 route handler 執行時的例外
     return NextResponse.json( // 回傳錯誤 JSON
@@ -97,7 +106,7 @@ export async function GET(request: NextRequest) { // 匯出 GET route handler
         ok: false, // 表示請求失敗
         error: error?.message || "LINE 啟動流程發生未預期錯誤", // 回傳錯誤訊息
       },
-      { status: 500 }, // 設定 HTTP 狀態碼為 500
+      { status: 500 } // 設定 HTTP 狀態碼為 500
     ); // 錯誤 JSON 回傳結束
   } // catch 結束
 } // GET handler 結束
